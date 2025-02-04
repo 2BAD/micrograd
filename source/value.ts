@@ -55,6 +55,11 @@ export class Value {
     if (value instanceof Value) {
       return value
     }
+
+    if (Number.isNaN(value)) {
+      throw new Error('Unsupported value')
+    }
+
     return new Value(Number(value))
   }
 
