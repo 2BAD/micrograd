@@ -113,6 +113,19 @@ export class Value {
     return v
   }
 
+  static divide(a: unknown, b: unknown, label?: string): Value {
+    const valueA = Value.from(a)
+    const valueB = Value.from(b)
+
+    const v = new Value(valueA.data / valueB.data, label, [valueA, valueB], 'div')
+    v.computeGradient = () => {
+      valueA.grad += (1.0 / valueB.data) * v.grad
+      valueB.grad += (-valueA.data / (valueB.data * valueB.data)) * v.grad
+    }
+
+    return v
+  }
+
   static exp(a: unknown, label?: string): Value {
     const valueA = Value.from(a)
 
