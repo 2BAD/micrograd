@@ -3,12 +3,14 @@ export class Value {
   readonly grad: number
   readonly children: Value[]
   readonly operation: string
+  readonly label: string
 
-  constructor(data: number, children?: Value[], operation?: string) {
+  constructor(data: number, label?: string, children?: Value[], operation?: string) {
     this.data = data
     this.grad = 0.0
     this.children = children ?? []
     this.operation = operation ?? '+'
+    this.label = label ?? ''
   }
 
   [Symbol.toPrimitive](hint: string) {
@@ -29,11 +31,15 @@ export class Value {
     return new Value(Number(value))
   }
 
-  static add(a: Value, b: Value): Value {
-    return new Value(a.data + b.data, [a, b], '+')
+  static add(a: Value, b: Value, label?: string): Value {
+    return new Value(a.data + b.data, label, [a, b], '+')
   }
 
-  static multiply(a: Value, b: Value): Value {
-    return new Value(a.data * b.data, [a, b], '*')
+  static multiply(a: Value, b: Value, label?: string): Value {
+    return new Value(a.data * b.data, label, [a, b], '*')
+  }
+
+  static tanh(a: Value, label?: string): Value {
+    return new Value(Math.tanh(a.data), label, [a], 'tanh')
   }
 }
