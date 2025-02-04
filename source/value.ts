@@ -29,6 +29,28 @@ export class Value {
     return Array.from(new Set(this.children))
   }
 
+  backward(): void {
+    const sortedNodes: Value[] = []
+    const visited = new Set()
+
+    const dfs = (v: Value) => {
+      if (!visited.has(v)) {
+        visited.add(v)
+        for (const child of v.prev()) {
+          dfs(child)
+        }
+        sortedNodes.push(v)
+      }
+    }
+
+    dfs(this)
+    this.grad = 1.0
+
+    for (const v of sortedNodes.reverse()) {
+      v.computeGradient()
+    }
+  }
+
   static from(value: unknown): Value {
     if (value instanceof Value) {
       return value
