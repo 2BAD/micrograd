@@ -67,7 +67,7 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
-    const v = new Value(valueA.data + valueB.data, label, [valueA, valueB], '+')
+    const v = new Value(valueA.data + valueB.data, label, [valueA, valueB], 'add')
     v.computeGradient = () => {
       valueA.grad += 1.0 * v.grad
       valueB.grad += 1.0 * v.grad
@@ -80,10 +80,34 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
-    const v = new Value(valueA.data * valueB.data, label, [valueA, valueB], '*')
+    const v = new Value(valueA.data * valueB.data, label, [valueA, valueB], 'mul')
     v.computeGradient = () => {
       valueA.grad += valueB.data * v.grad
       valueB.grad += valueA.data * v.grad
+    }
+
+    return v
+  }
+
+  static exp(a: unknown, label?: string): Value {
+    const valueA = Value.from(a)
+
+    const v = new Value(Math.exp(valueA.data), label, [valueA], 'exp')
+    v.computeGradient = () => {
+      valueA.grad += v.data * v.grad
+    }
+
+    return v
+  }
+
+  static pow(a: unknown, b: unknown, label?: string): Value {
+    const valueA = Value.from(a)
+    const valueB = Value.from(b)
+
+    const v = new Value(valueA.data ** valueB.data, label, [valueA, valueB], 'pow')
+    v.computeGradient = () => {
+      valueA.grad += valueB.data * valueA.data ** (valueB.data - 1) * v.grad
+      valueB.grad += valueA.data ** valueB.data * Math.log(valueA.data) * v.grad
     }
 
     return v
