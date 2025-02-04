@@ -58,31 +58,38 @@ export class Value {
     return new Value(Number(value))
   }
 
-  static add(a: Value, b: Value, label?: string): Value {
-    const v = new Value(a.data + b.data, label, [a, b], '+')
+  static add(a: unknown, b: unknown, label?: string): Value {
+    const valueA = Value.from(a)
+    const valueB = Value.from(b)
+
+    const v = new Value(valueA.data + valueB.data, label, [valueA, valueB], '+')
     v.computeGradient = () => {
-      a.grad += 1.0 * v.grad
-      b.grad += 1.0 * v.grad
+      valueA.grad += 1.0 * v.grad
+      valueB.grad += 1.0 * v.grad
     }
 
     return v
   }
 
-  static multiply(a: Value, b: Value, label?: string): Value {
-    const v = new Value(a.data * b.data, label, [a, b], '*')
+  static multiply(a: unknown, b: unknown, label?: string): Value {
+    const valueA = Value.from(a)
+    const valueB = Value.from(b)
+
+    const v = new Value(valueA.data * valueB.data, label, [valueA, valueB], '*')
     v.computeGradient = () => {
-      a.grad += b.data * v.grad
-      b.grad += a.data * v.grad
+      valueA.grad += valueB.data * v.grad
+      valueB.grad += valueA.data * v.grad
     }
 
     return v
   }
 
-  static tanh(a: Value, label?: string): Value {
-    const v = new Value(Math.tanh(a.data), label, [a], 'tanh')
+  static tanh(a: unknown, label?: string): Value {
+    const valueA = Value.from(a)
 
+    const v = new Value(Math.tanh(valueA.data), label, [valueA], 'tanh')
     v.computeGradient = () => {
-      a.grad += (1 - v.data ** 2) * v.grad
+      valueA.grad += (1 - v.data ** 2) * v.grad
     }
 
     return v
