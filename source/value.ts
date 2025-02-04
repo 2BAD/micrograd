@@ -1,7 +1,7 @@
 /* eslint-disable jsdoc/require-jsdoc */
 export class Value {
   public grad: number
-  public backward: () => void
+  public computeGradient: () => void
 
   readonly data: number
   readonly label: string
@@ -10,7 +10,7 @@ export class Value {
 
   constructor(data: number, label?: string, children?: Value[], operation?: string) {
     this.grad = 0.0
-    this.backward = () => undefined
+    this.computeGradient = () => undefined
 
     this.data = data
     this.label = label ?? ''
@@ -38,9 +38,9 @@ export class Value {
 
   static add(a: Value, b: Value, label?: string): Value {
     const v = new Value(a.data + b.data, label, [a, b], '+')
-    v.backward = () => {
-      a.grad = 1.0 * v.grad
-      b.grad = 1.0 * v.grad
+    v.computeGradient = () => {
+      a.grad += 1.0 * v.grad
+      b.grad += 1.0 * v.grad
     }
 
     return v
@@ -48,9 +48,9 @@ export class Value {
 
   static multiply(a: Value, b: Value, label?: string): Value {
     const v = new Value(a.data * b.data, label, [a, b], '*')
-    v.backward = () => {
-      a.grad = b.data * v.grad
-      b.grad = a.data * v.grad
+    v.computeGradient = () => {
+      a.grad += b.data * v.grad
+      b.grad += a.data * v.grad
     }
 
     return v
@@ -59,8 +59,8 @@ export class Value {
   static tanh(a: Value, label?: string): Value {
     const v = new Value(Math.tanh(a.data), label, [a], 'tanh')
 
-    v.backward = () => {
-      a.grad = (1 - v.data ** 2) * v.grad
+    v.computeGradient = () => {
+      a.grad += (1 - v.data ** 2) * v.grad
     }
 
     return v
