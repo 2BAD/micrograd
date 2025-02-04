@@ -63,6 +63,17 @@ export class Value {
     return new Value(Number(value))
   }
 
+  static negate = (a: unknown, label?: string): Value => {
+    const value = Value.from(a)
+
+    const v = new Value(value.data * -1, label, [value], 'neg')
+    v.computeGradient = () => {
+      value.grad += -1.0 * v.grad
+    }
+
+    return v
+  }
+
   static add(a: unknown, b: unknown, label?: string): Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
@@ -71,6 +82,19 @@ export class Value {
     v.computeGradient = () => {
       valueA.grad += 1.0 * v.grad
       valueB.grad += 1.0 * v.grad
+    }
+
+    return v
+  }
+
+  static subtract(a: unknown, b: unknown, label?: string): Value {
+    const valueA = Value.from(a)
+    const valueB = Value.from(b)
+
+    const v = new Value(valueA.data - valueB.data, label, [valueA, valueB], 'sub')
+    v.computeGradient = () => {
+      valueA.grad += 1.0 * v.grad
+      valueB.grad += -1.0 * v.grad
     }
 
     return v
@@ -118,7 +142,7 @@ export class Value {
 
     const v = new Value(Math.tanh(valueA.data), label, [valueA], 'tanh')
     v.computeGradient = () => {
-      valueA.grad += (1 - v.data ** 2) * v.grad
+      valueA.grad += (1.0 - v.data ** 2) * v.grad
     }
 
     return v
