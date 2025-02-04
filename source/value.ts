@@ -87,7 +87,11 @@ export class Value {
     return v
   }
 
-  static subtract(a: unknown, b: unknown, label?: string): Value {
+  add(b: unknown, label?: string): Value {
+    return Value.add(this, b, label)
+  }
+
+  static sub(a: unknown, b: unknown, label?: string): Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
@@ -100,7 +104,11 @@ export class Value {
     return v
   }
 
-  static multiply(a: unknown, b: unknown, label?: string): Value {
+  sub(b: unknown, label?: string): Value {
+    return Value.sub(this, b, label)
+  }
+
+  static mul(a: unknown, b: unknown, label?: string): Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
@@ -113,7 +121,11 @@ export class Value {
     return v
   }
 
-  static divide(a: unknown, b: unknown, label?: string): Value {
+  mul(b: unknown, label?: string): Value {
+    return Value.mul(this, b, label)
+  }
+
+  static div(a: unknown, b: unknown, label?: string): Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
@@ -126,6 +138,10 @@ export class Value {
     return v
   }
 
+  div(b: unknown, label?: string): Value {
+    return Value.div(this, b, label)
+  }
+
   static exp(a: unknown, label?: string): Value {
     const valueA = Value.from(a)
 
@@ -135,6 +151,10 @@ export class Value {
     }
 
     return v
+  }
+
+  exp(): Value {
+    return Value.exp(this)
   }
 
   static pow(a: unknown, b: unknown, label?: string): Value {
@@ -150,6 +170,10 @@ export class Value {
     return v
   }
 
+  pow(b: unknown, label?: string): Value {
+    return Value.pow(this, b, label)
+  }
+
   static tanh(a: unknown, label?: string): Value {
     const valueA = Value.from(a)
 
@@ -159,5 +183,9 @@ export class Value {
     }
 
     return v
+  }
+
+  tanh(): Value {
+    return Value.tanh(this)
   }
 }
