@@ -60,10 +60,22 @@ export class Value {
   }
 
   resetGrad(): void {
-    this.#grad = 0
-    for (const child of this.children) {
-      child.resetGrad()
+    const visited = new Set<string>()
+
+    const resetGradHelper = (node: Value) => {
+      if (visited.has(node.#id)) {
+        return
+      }
+      visited.add(node.#id)
+
+      node.#grad = 0
+      node.#higherOrderGrads.clear()
+      for (const child of node.children) {
+        resetGradHelper(child)
+      }
     }
+
+    resetGradHelper(this)
   }
 
   backward(): void {
