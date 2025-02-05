@@ -67,7 +67,7 @@ export class Value {
       }
       visited.add(node.#id)
 
-      node.#grad = 0
+      node.grad = 0
       node.#higherOrderGrads.clear()
       for (const child of node.children) {
         resetGradHelper(child)
@@ -148,9 +148,9 @@ export class Value {
   static negate = (a: unknown, label?: string): Value => {
     const value = Value.from(a)
 
-    const v = new Value(value.#data * -1, label, [value], 'neg')
+    const v = new Value(value.data * -1, label, [value], 'neg')
     v.#computeGradient = () => {
-      value.#grad += -1.0 * v.#grad
+      value.grad += -1.0 * v.grad
     }
 
     return v
@@ -160,10 +160,10 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
-    const v = new Value(valueA.#data + valueB.#data, label, [valueA, valueB], 'add')
+    const v = new Value(valueA.data + valueB.data, label, [valueA, valueB], 'add')
     v.#computeGradient = () => {
-      valueA.#grad += 1.0 * v.#grad
-      valueB.#grad += 1.0 * v.#grad
+      valueA.grad += 1.0 * v.grad
+      valueB.grad += 1.0 * v.grad
     }
 
     return v
@@ -177,10 +177,10 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
-    const v = new Value(valueA.#data - valueB.#data, label, [valueA, valueB], 'sub')
+    const v = new Value(valueA.data - valueB.data, label, [valueA, valueB], 'sub')
     v.#computeGradient = () => {
-      valueA.#grad += 1.0 * v.#grad
-      valueB.#grad += -1.0 * v.#grad
+      valueA.grad += 1.0 * v.grad
+      valueB.grad += -1.0 * v.grad
     }
 
     return v
@@ -194,10 +194,10 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
-    const v = new Value(valueA.#data * valueB.#data, label, [valueA, valueB], 'mul')
+    const v = new Value(valueA.data * valueB.data, label, [valueA, valueB], 'mul')
     v.#computeGradient = () => {
-      valueA.#grad += valueB.#data * v.#grad
-      valueB.#grad += valueA.#data * v.#grad
+      valueA.grad += valueB.data * v.grad
+      valueB.grad += valueA.data * v.grad
     }
 
     return v
@@ -211,14 +211,14 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
-    if (Math.abs(valueB.#data) < Number.EPSILON) {
+    if (Math.abs(valueB.data) < Number.EPSILON) {
       throw new Error('Division by near-zero value')
     }
 
-    const v = new Value(valueA.#data / valueB.#data, label, [valueA, valueB], 'div')
+    const v = new Value(valueA.data / valueB.data, label, [valueA, valueB], 'div')
     v.#computeGradient = () => {
-      valueA.#grad += (1.0 / valueB.#data) * v.#grad
-      valueB.#grad += (-valueA.#data / (valueB.#data * valueB.#data)) * v.#grad
+      valueA.grad += (1.0 / valueB.data) * v.grad
+      valueB.grad += (-valueA.data / (valueB.data * valueB.data)) * v.grad
     }
 
     return v
@@ -231,9 +231,9 @@ export class Value {
   static exp(a: unknown, label?: string): Value {
     const valueA = Value.from(a)
 
-    const v = new Value(Math.exp(valueA.#data), label, [valueA], 'exp')
+    const v = new Value(Math.exp(valueA.data), label, [valueA], 'exp')
     v.#computeGradient = () => {
-      valueA.#grad += v.#data * v.#grad
+      valueA.grad += v.data * v.grad
     }
 
     return v
@@ -261,8 +261,8 @@ export class Value {
           throw new Error('Cannot raise 0 to zero or negative power')
         }
       } else {
-        valueA.#grad += valueB.#data * valueA.#data ** (valueB.#data - 1) * v.#grad
-        valueB.#grad += valueA.#data ** valueB.#data * Math.log(Math.abs(valueA.#data)) * v.#grad
+        valueA.grad += valueB.data * valueA.data ** (valueB.data - 1) * v.grad
+        valueB.grad += valueA.data ** valueB.data * Math.log(Math.abs(valueA.data)) * v.grad
       }
     }
 
