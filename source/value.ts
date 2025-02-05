@@ -52,15 +52,51 @@ export class Value {
   }
 
   static from(value: unknown): Value {
+    // Handle Value instances
     if (value instanceof Value) {
       return value
     }
 
-    if (Number.isNaN(value)) {
-      throw new Error('Unsupported value')
+    // Handle numbers directly
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) {
+        throw new Error('Value must be a finite number')
+      }
+      return new Value(value)
     }
 
-    return new Value(Number(value))
+    // Handle string conversion
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      const number = Number(trimmed)
+
+      // Check if the string is a valid number representation
+      if (!Number.isFinite(number) || !/^[+-]?\d*\.?\d+(?:[eE][+-]?\d+)?$/.test(trimmed)) {
+        throw new Error('Invalid number format')
+      }
+
+      return new Value(number)
+    }
+
+    // Handle boolean values
+    if (typeof value === 'boolean') {
+      return new Value(value ? 1 : 0)
+    }
+
+    // Handle null and undefined
+    if (value === null || value === undefined) {
+      throw new Error('Cannot create Value from null or undefined')
+    }
+
+    // Handle arrays with single numeric value
+    if (Array.isArray(value)) {
+      if (value.length !== 1) {
+        throw new Error('Arrays must contain exactly one numeric value')
+      }
+      return Value.from(value[0])
+    }
+
+    throw new Error(`Cannot convert ${typeof value} to Value`)
   }
 
   static negate = (a: unknown, label?: string): Value => {
