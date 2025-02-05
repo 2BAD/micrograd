@@ -117,10 +117,8 @@ export class Value {
     // Handle string conversion
     if (typeof value === 'string') {
       const trimmed = value.trim()
-      const number = Number(trimmed)
-
-      // Check if the string is a valid number representation
-      if (!Number.isFinite(number) || !/^[+-]?\d*\.?\d+(?:[eE][+-]?\d+)?$/.test(trimmed)) {
+      const number = Number(value.trim())
+      if (!Number.isFinite(number) || trimmed.length === 0) {
         throw new Error('Invalid number format')
       }
 
