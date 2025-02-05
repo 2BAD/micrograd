@@ -1,18 +1,18 @@
 /* eslint-disable jsdoc/require-jsdoc */
 export class Value {
-  public grad: number
+  #data: number
+  #grad: number
   public computeGradient: () => void
 
-  readonly data: number
   readonly label: string
   readonly children: Value[]
   readonly operation: string
 
   constructor(data: number, label?: string, children?: Value[], operation?: string) {
-    this.grad = 0.0
+    this.#data = data
+    this.#grad = 0.0
     this.computeGradient = () => undefined
 
-    this.data = data
     this.label = label ?? ''
     this.children = children ?? []
     this.operation = operation ?? '+'
@@ -20,9 +20,17 @@ export class Value {
 
   [Symbol.toPrimitive](hint: string) {
     if (hint === 'number') {
-      return this.data
+      return this.#data
     }
-    return `Value(${this.data})`
+    return `Value(${this.#data})`
+  }
+
+  get data(): number {
+    return this.#data
+  }
+
+  get grad(): number {
+    return this.#grad
   }
 
   prev(): Value[] {
@@ -44,7 +52,7 @@ export class Value {
     }
 
     dfs(this)
-    this.grad = 1.0
+    this.#grad = 1.0
 
     for (const v of sortedNodes.reverse()) {
       v.computeGradient()
@@ -102,9 +110,9 @@ export class Value {
   static negate = (a: unknown, label?: string): Value => {
     const value = Value.from(a)
 
-    const v = new Value(value.data * -1, label, [value], 'neg')
+    const v = new Value(value.#data * -1, label, [value], 'neg')
     v.computeGradient = () => {
-      value.grad += -1.0 * v.grad
+      value.#grad += -1.0 * v.#grad
     }
 
     return v
@@ -114,10 +122,10 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
-    const v = new Value(valueA.data + valueB.data, label, [valueA, valueB], 'add')
+    const v = new Value(valueA.#data + valueB.#data, label, [valueA, valueB], 'add')
     v.computeGradient = () => {
-      valueA.grad += 1.0 * v.grad
-      valueB.grad += 1.0 * v.grad
+      valueA.#grad += 1.0 * v.#grad
+      valueB.#grad += 1.0 * v.#grad
     }
 
     return v
@@ -131,10 +139,10 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
-    const v = new Value(valueA.data - valueB.data, label, [valueA, valueB], 'sub')
+    const v = new Value(valueA.#data - valueB.#data, label, [valueA, valueB], 'sub')
     v.computeGradient = () => {
-      valueA.grad += 1.0 * v.grad
-      valueB.grad += -1.0 * v.grad
+      valueA.#grad += 1.0 * v.#grad
+      valueB.#grad += -1.0 * v.#grad
     }
 
     return v
@@ -148,10 +156,10 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
-    const v = new Value(valueA.data * valueB.data, label, [valueA, valueB], 'mul')
+    const v = new Value(valueA.#data * valueB.#data, label, [valueA, valueB], 'mul')
     v.computeGradient = () => {
-      valueA.grad += valueB.data * v.grad
-      valueB.grad += valueA.data * v.grad
+      valueA.#grad += valueB.#data * v.#grad
+      valueB.#grad += valueA.#data * v.#grad
     }
 
     return v
@@ -164,14 +172,14 @@ export class Value {
   static div(a: unknown, b: unknown, label?: string): Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
-    if (valueB.data === 0) {
+    if (valueB.#data === 0) {
       throw new Error('Division by zero')
     }
 
-    const v = new Value(valueA.data / valueB.data, label, [valueA, valueB], 'div')
+    const v = new Value(valueA.#data / valueB.#data, label, [valueA, valueB], 'div')
     v.computeGradient = () => {
-      valueA.grad += (1.0 / valueB.data) * v.grad
-      valueB.grad += (-valueA.data / (valueB.data * valueB.data)) * v.grad
+      valueA.#grad += (1.0 / valueB.#data) * v.#grad
+      valueB.#grad += (-valueA.#data / (valueB.#data * valueB.#data)) * v.#grad
     }
 
     return v
@@ -184,9 +192,9 @@ export class Value {
   static exp(a: unknown, label?: string): Value {
     const valueA = Value.from(a)
 
-    const v = new Value(Math.exp(valueA.data), label, [valueA], 'exp')
+    const v = new Value(Math.exp(valueA.#data), label, [valueA], 'exp')
     v.computeGradient = () => {
-      valueA.grad += v.data * v.grad
+      valueA.#grad += v.#data * v.#grad
     }
 
     return v
@@ -200,22 +208,22 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
-    if (valueA.data < 0 && !Number.isInteger(valueB.data)) {
+    if (valueA.#data < 0 && !Number.isInteger(valueB.#data)) {
       throw new Error('Negative numbers cannot be raised to non-integer powers')
     }
 
-    const v = new Value(valueA.data ** valueB.data, label, [valueA, valueB], 'pow')
+    const v = new Value(valueA.#data ** valueB.#data, label, [valueA, valueB], 'pow')
     v.computeGradient = () => {
-      if (valueA.data === 0) {
-        if (valueB.data > 0) {
-          valueA.grad += 0 // Derivative of 0^x for x > 0 is 0
-          valueB.grad += 0 // Derivative with respect to exponent is also 0
+      if (valueA.#data === 0) {
+        if (valueB.#data > 0) {
+          valueA.#grad += 0 // Derivative of 0^x for x > 0 is 0
+          valueB.#grad += 0 // Derivative with respect to exponent is also 0
         } else {
           throw new Error('Cannot raise 0 to zero or negative power')
         }
       } else {
-        valueA.grad += valueB.data * valueA.data ** (valueB.data - 1) * v.grad
-        valueB.grad += valueA.data ** valueB.data * Math.log(Math.abs(valueA.data)) * v.grad
+        valueA.#grad += valueB.#data * valueA.#data ** (valueB.#data - 1) * v.#grad
+        valueB.#grad += valueA.#data ** valueB.#data * Math.log(Math.abs(valueA.#data)) * v.#grad
       }
     }
 
@@ -229,9 +237,9 @@ export class Value {
   static tanh(a: unknown, label?: string): Value {
     const valueA = Value.from(a)
 
-    const v = new Value(Math.tanh(valueA.data), label, [valueA], 'tanh')
+    const v = new Value(Math.tanh(valueA.#data), label, [valueA], 'tanh')
     v.computeGradient = () => {
-      valueA.grad += (1.0 - v.data ** 2) * v.grad
+      valueA.#grad += (1.0 - v.#data ** 2) * v.#grad
     }
 
     return v
