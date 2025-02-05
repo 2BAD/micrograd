@@ -37,6 +37,13 @@ export class Value {
     return Array.from(new Set(this.children))
   }
 
+  resetGrad(): void {
+    this.#grad = 0
+    for (const child of this.children) {
+      child.resetGrad()
+    }
+  }
+
   backward(): void {
     const sortedNodes: Value[] = []
     const visited = new Set()
