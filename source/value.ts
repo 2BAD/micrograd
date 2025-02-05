@@ -11,7 +11,6 @@ export class Value {
   readonly operation: string
 
   static #instanceCounter = 0
-  static readonly EPSILON = 1e-10
 
   constructor(data: number, label?: string, children?: Value[], operation?: string) {
     this.validateNumber(data)
@@ -150,7 +149,7 @@ export class Value {
     const value = Value.from(a)
 
     const v = new Value(value.#data * -1, label, [value], 'neg')
-    v.computeGradient = () => {
+    v.#computeGradient = () => {
       value.#grad += -1.0 * v.#grad
     }
 
@@ -162,7 +161,7 @@ export class Value {
     const valueB = Value.from(b)
 
     const v = new Value(valueA.#data + valueB.#data, label, [valueA, valueB], 'add')
-    v.computeGradient = () => {
+    v.#computeGradient = () => {
       valueA.#grad += 1.0 * v.#grad
       valueB.#grad += 1.0 * v.#grad
     }
@@ -179,7 +178,7 @@ export class Value {
     const valueB = Value.from(b)
 
     const v = new Value(valueA.#data - valueB.#data, label, [valueA, valueB], 'sub')
-    v.computeGradient = () => {
+    v.#computeGradient = () => {
       valueA.#grad += 1.0 * v.#grad
       valueB.#grad += -1.0 * v.#grad
     }
@@ -196,7 +195,7 @@ export class Value {
     const valueB = Value.from(b)
 
     const v = new Value(valueA.#data * valueB.#data, label, [valueA, valueB], 'mul')
-    v.computeGradient = () => {
+    v.#computeGradient = () => {
       valueA.#grad += valueB.#data * v.#grad
       valueB.#grad += valueA.#data * v.#grad
     }
@@ -211,12 +210,13 @@ export class Value {
   static div(a: unknown, b: unknown, label?: string): Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
-    if (valueB.#data === 0) {
-      throw new Error('Division by zero')
+
+    if (Math.abs(valueB.#data) < Number.EPSILON) {
+      throw new Error('Division by near-zero value')
     }
 
     const v = new Value(valueA.#data / valueB.#data, label, [valueA, valueB], 'div')
-    v.computeGradient = () => {
+    v.#computeGradient = () => {
       valueA.#grad += (1.0 / valueB.#data) * v.#grad
       valueB.#grad += (-valueA.#data / (valueB.#data * valueB.#data)) * v.#grad
     }
@@ -232,7 +232,7 @@ export class Value {
     const valueA = Value.from(a)
 
     const v = new Value(Math.exp(valueA.#data), label, [valueA], 'exp')
-    v.computeGradient = () => {
+    v.#computeGradient = () => {
       valueA.#grad += v.#data * v.#grad
     }
 
