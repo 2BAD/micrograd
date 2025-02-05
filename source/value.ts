@@ -1,36 +1,58 @@
 /* eslint-disable jsdoc/require-jsdoc */
 export class Value {
+  readonly #id: string
   #data: number
   #grad: number
-  public computeGradient: () => void
+  #computeGradient: () => void
+  readonly #higherOrderGrads: Map<number, number>
 
   readonly label: string
   readonly children: Value[]
   readonly operation: string
 
+  static #instanceCounter = 0
+  static readonly EPSILON = 1e-10
+
   constructor(data: number, label?: string, children?: Value[], operation?: string) {
+    this.validateNumber(data)
+
+    this.#id = `value_${Value.#instanceCounter++}`
     this.#data = data
     this.#grad = 0.0
-    this.computeGradient = () => undefined
+    this.#computeGradient = () => undefined
+    this.#higherOrderGrads = new Map()
 
     this.label = label ?? ''
     this.children = children ?? []
     this.operation = operation ?? '+'
   }
 
-  [Symbol.toPrimitive](hint: string) {
-    if (hint === 'number') {
-      return this.#data
+  private validateNumber(value: number): void {
+    if (!Number.isFinite(value)) {
+      throw new Error('Value must be a finite number')
     }
-    return `Value(${this.#data})`
+  }
+
+  get id(): string {
+    return this.#id
   }
 
   get data(): number {
     return this.#data
   }
 
+  set data(value: number) {
+    this.validateNumber(value)
+    this.#data = value
+  }
+
   get grad(): number {
     return this.#grad
+  }
+
+  set grad(value: number) {
+    this.validateNumber(value)
+    this.#grad = value
   }
 
   prev(): Value[] {
