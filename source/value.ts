@@ -128,6 +128,9 @@ export class Value {
   static div(a: unknown, b: unknown, label?: string): Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
+    if (valueB.data === 0) {
+      throw new Error('Division by zero')
+    }
 
     const v = new Value(valueA.data / valueB.data, label, [valueA, valueB], 'div')
     v.computeGradient = () => {
