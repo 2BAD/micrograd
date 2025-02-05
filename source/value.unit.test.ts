@@ -125,6 +125,52 @@ describe('Value', () => {
   })
 
   describe('exponential operations', () => {
+    describe('power edge cases', () => {
+      test('should throw for negative base with non-integer exponent', () => {
+        const base = new Value(-2)
+        const exp = new Value(2.5)
+        expect(() => base.pow(exp)).toThrow('Negative numbers cannot be raised to non-integer powers')
+      })
+
+      test('should throw for zero base with zero exponent', () => {
+        const base = new Value(0)
+        const exp = new Value(0)
+        const result = base.pow(exp)
+        expect(() => result.backward()).toThrow('Cannot raise 0 to zero or negative power')
+      })
+
+      test('should throw for zero base with negative exponent', () => {
+        const base = new Value(0)
+        const exp = new Value(-1)
+        const result = base.pow(exp)
+        expect(() => result.backward()).toThrow('Cannot raise 0 to zero or negative power')
+      })
+
+      test('should handle zero base with positive exponent', () => {
+        const base = new Value(0)
+        const exp = new Value(2)
+        const result = base.pow(exp)
+        expect(result.data).toBe(0)
+        result.backward()
+        expect(base.grad).toBe(0)
+        expect(exp.grad).toBe(0)
+      })
+
+      test('should handle negative base with even integer exponent', () => {
+        const base = new Value(-2)
+        const exp = new Value(2)
+        const result = base.pow(exp)
+        expect(result.data).toBe(4)
+      })
+
+      test('should handle negative base with odd integer exponent', () => {
+        const base = new Value(-2)
+        const exp = new Value(3)
+        const result = base.pow(exp)
+        expect(result.data).toBe(-8)
+      })
+    })
+
     test('exp operation', () => {
       const a = new Value(1)
       const b = Value.exp(a)
@@ -195,7 +241,7 @@ describe('Value', () => {
 
   describe('backward propagation', () => {
     test('simple computation graph', () => {
-      // c = a * b + b
+      // Create computation graph: c = a * b + b
       const a = new Value(3)
       const b = new Value(2)
       const prod = a.mul(b)
@@ -208,7 +254,7 @@ describe('Value', () => {
     })
 
     test('complex computation graph', () => {
-      // d = (a * b + b) * tanh(c)
+      // Create more complex graph: d = (a * b + b) * tanh(c)
       const a = new Value(2)
       const b = new Value(3)
       const c = new Value(1)
@@ -220,6 +266,7 @@ describe('Value', () => {
 
       d.backward()
 
+      // Verify gradients are computed correctly
       expect(a.grad).toBeCloseTo(3 * Math.tanh(1))
       expect(b.grad).toBeCloseTo(4 * Math.tanh(1))
       expect(c.grad).toBeCloseTo(9 * (1 - Math.tanh(1) ** 2))

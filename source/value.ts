@@ -164,10 +164,23 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
+    if (valueA.data < 0 && !Number.isInteger(valueB.data)) {
+      throw new Error('Negative numbers cannot be raised to non-integer powers')
+    }
+
     const v = new Value(valueA.data ** valueB.data, label, [valueA, valueB], 'pow')
     v.computeGradient = () => {
-      valueA.grad += valueB.data * valueA.data ** (valueB.data - 1) * v.grad
-      valueB.grad += valueA.data ** valueB.data * Math.log(valueA.data) * v.grad
+      if (valueA.data === 0) {
+        if (valueB.data > 0) {
+          valueA.grad += 0 // Derivative of 0^x for x > 0 is 0
+          valueB.grad += 0 // Derivative with respect to exponent is also 0
+        } else {
+          throw new Error('Cannot raise 0 to zero or negative power')
+        }
+      } else {
+        valueA.grad += valueB.data * valueA.data ** (valueB.data - 1) * v.grad
+        valueB.grad += valueA.data ** valueB.data * Math.log(Math.abs(valueA.data)) * v.grad
+      }
     }
 
     return v
