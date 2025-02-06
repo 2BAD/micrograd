@@ -209,9 +209,9 @@ describe('Value', () => {
         expect(c.data).toBe(2 / 3)
       })
 
-      test('should throw on division by zero', () => {
+      test('should throw on division by near-zero value', () => {
         const zero = new Value(0)
-        expect(() => a.div(zero)).toThrow('Division by zero')
+        expect(() => a.div(zero)).toThrow('Division by near-zero value')
       })
 
       test('gradient computation', () => {
