@@ -1,5 +1,11 @@
 # MicroGrad
 
+[![NPM version](https://img.shields.io/npm/v/@2bad/micrograd)](https://www.npmjs.com/package/@2bad/micrograd)
+[![License](https://img.shields.io/npm/l/@2bad/micrograd)](https://opensource.org/license/MIT)
+[![GitHub Build Status](https://img.shields.io/github/actions/workflow/status/2BAD/micrograd/build.yml)](https://github.com/2BAD/micrograd/actions/workflows/build.yml)
+[![Code coverage](https://img.shields.io/codecov/c/github/2BAD/micrograd)](https://codecov.io/gh/2BAD/micrograd)
+[![Written in TypeScript](https://img.shields.io/github/languages/top/2BAD/micrograd)](https://www.typescriptlang.org/)
+
 A TypeScript implementation of an autograd engine for educational purposes.
 
 ## Overview
