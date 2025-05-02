@@ -350,23 +350,45 @@ describe('Value', () => {
       expect(b.grad).toBe(4) // partial derivative with respect to b (2 paths)
     })
 
-    test.skip('complex computation graph', () => {
-      // Create more complex graph: d = (a * b + b) * tanh(c)
-      const a = new Value(2)
-      const b = new Value(3)
-      const c = new Value(1)
+    test('complex computation graph', () => {
+      const a = new Value(-4.0, 'a')
+      const b = new Value(2.0, 'b')
+      let c = Value.add(a, b, 'c') // a + b
+      let d = Value.add(Value.mul(a, b), Value.pow(b, 3), 'd') // a * b + b**3
 
-      const prod = a.mul(b)
-      const sum = prod.add(b)
-      const t = c.tanh()
-      const d = sum.mul(t)
+      // c += c + 1
+      c = Value.add(c, Value.add(c, new Value(1.0)))
 
-      d.backward()
+      // c += 1 + c + (-a)
+      c = Value.add(c, Value.add(Value.add(new Value(1.0), c), Value.negate(a)))
+
+      // d += d * 2 + (b + a).relu()
+      const bPlusA = Value.add(b, a)
+      d = Value.add(d, Value.add(Value.mul(d, 2), Value.relu(bPlusA)))
+
+      // d += 3 * d + (b - a).relu()
+      const bMinusA = Value.sub(b, a)
+      d = Value.add(d, Value.add(Value.mul(3, d), Value.relu(bMinusA)))
+
+      // e = c - d
+      const e = Value.sub(c, d, 'e')
+
+      // f = e**2
+      const f = Value.pow(e, 2, 'f')
+
+      // g = f / 2.0
+      let g = Value.div(f, 2.0, 'g')
+
+      // g += 10.0 / f
+      g = Value.add(g, Value.div(10.0, f))
+
+      // Compute gradients
+      g.backward()
 
       // Verify gradients are computed correctly
-      expect(a.grad).toBeCloseTo(3 * Math.tanh(1))
-      expect(b.grad).toBeCloseTo(4 * Math.tanh(1))
-      expect(c.grad).toBeCloseTo(9 * (1 - Math.tanh(1) ** 2))
+      expect(g.data).toBeCloseTo(24.7041)
+      expect(a.grad).toBeCloseTo(138.8338)
+      expect(b.grad).toBeCloseTo(645.5773)
     })
   })
 
