@@ -1,0 +1,99 @@
+import { Value } from './value.ts'
+
+export class Neuron {
+  weights: Value[]
+  bias: Value
+
+  constructor(inputs: number) {
+    this.weights = Array.from({ length: inputs }).map(() => new Value(Math.random() * 2 - 1))
+    this.bias = new Value(Math.random() * 2 - 1)
+  }
+
+  forward(inputs: Value[]): Value {
+    // w * x + b
+    const activation = this.weights.reduce((sum, w, i) => sum.add(w.mul(inputs[i])), this.bias)
+    return activation.tanh()
+  }
+
+  parameters(): Value[] {
+    return [...this.weights, this.bias]
+  }
+}
+
+export class Layer {
+  neurons: Neuron[]
+
+  constructor(inputs: number, outputs: number) {
+    this.neurons = Array.from({ length: outputs }).map(() => new Neuron(inputs))
+  }
+
+  forward(inputs: Value[]): Value[] {
+    return this.neurons.map((neuron) => neuron.forward(inputs))
+  }
+
+  parameters(): Value[] {
+    return this.neurons.flatMap((neuron) => neuron.parameters())
+  }
+}
+
+// biome-ignore lint/style/useNamingConvention:
+class MLP {
+  layers: Layer[]
+
+  constructor(inputs: number, outputs: number[]) {
+    const sizes = [inputs, ...outputs]
+    this.layers = sizes.slice(1).map((size, i) => {
+      // @ts-expect-error this is a typescript limitation
+      return new Layer(sizes[i], size)
+    })
+  }
+
+  forward(inputs: Value[]): Value[] {
+    return this.layers.reduce((prev, layer) => layer.forward(prev), inputs)
+  }
+
+  parameters(): Value[] {
+    return this.layers.flatMap((layer) => layer.parameters())
+  }
+
+  train(xs: number[][], ys: number[], learningRate = 0.1, epochs = 100): void {
+    for (let epoch = 0; epoch < epochs; epoch++) {
+      let totalLoss = new Value(0)
+
+      for (let i = 0; i < xs.length; i++) {
+        const pred = this.forward(xs[i])[0]
+        const target = new Value(ys[i])
+        const loss = pred.sub(target).pow(2)
+        totalLoss = totalLoss.add(loss)
+      }
+
+      totalLoss.resetGrad()
+
+      // Backward pass
+      totalLoss.backward()
+
+      // Update parameters
+      for (const p of this.parameters()) {
+        p.data -= learningRate * p.grad
+        p.grad = 0
+      }
+
+      if (epoch % 10 === 0) {
+        console.log(`Epoch ${epoch}, Loss: ${totalLoss.data}`)
+      }
+    }
+  }
+}
+
+const mlp = new MLP(3, [4, 4, 1]) // 3 inputs, two hidden layers of 4 neurons, 1 output
+const xs = [
+  [2.0, 3.0, -1.0],
+  [3.0, -1.0, 0.5],
+  [0.5, 1.0, 1.0],
+  [1.0, 1.0, -1.0]
+]
+const ys = [1.0, -1.0, -1.0, 1.0]
+
+mlp.train(xs, ys, 0.1, 200)
+
+console.log(mlp.parameters())

@@ -234,15 +234,13 @@ describe('Value', () => {
       test('should throw for zero base with zero exponent', () => {
         const base = new Value(0)
         const exp = new Value(0)
-        const result = base.pow(exp)
-        expect(() => result.backward()).toThrow('Cannot raise 0 to zero or negative power')
+        expect(() => base.pow(exp)).toThrow('Cannot raise 0 to zero or negative power')
       })
 
       test('should throw for zero base with negative exponent', () => {
         const base = new Value(0)
         const exp = new Value(-1)
-        const result = base.pow(exp)
-        expect(() => result.backward()).toThrow('Cannot raise 0 to zero or negative power')
+        expect(() => base.pow(exp)).toThrow('Division by zero in power operation')
       })
 
       test('should handle zero base with positive exponent', () => {
