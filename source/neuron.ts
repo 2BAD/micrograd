@@ -38,14 +38,14 @@ export class Layer {
 }
 
 // biome-ignore lint/style/useNamingConvention:
-class MLP {
+export class MLP {
   layers: Layer[]
 
   constructor(inputs: number, outputs: number[]) {
     const sizes = [inputs, ...outputs]
     this.layers = sizes.slice(1).map((size, i) => {
-      // @ts-expect-error this is a typescript limitation
-      return new Layer(sizes[i], size)
+      // biome-ignore lint/style/noNonNullAssertion: this is a typescript limitation
+      return new Layer(sizes[i]!, size)
     })
   }
 
@@ -89,16 +89,3 @@ class MLP {
     }
   }
 }
-
-const mlp = new MLP(3, [4, 4, 1]) // 3 inputs, two hidden layers of 4 neurons, 1 output
-const xs = [
-  [2.0, 3.0, -1.0],
-  [3.0, -1.0, 0.5],
-  [0.5, 1.0, 1.0],
-  [1.0, 1.0, -1.0]
-]
-const ys = [1.0, -1.0, -1.0, 1.0]
-
-mlp.train(xs, ys, 0.1, 200)
-
-console.log(mlp.parameters())
