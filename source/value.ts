@@ -13,7 +13,7 @@ export class Value {
   static #instanceCounter = 0
 
   constructor(data: number, label?: string, children?: Value[], operation?: string) {
-    this.validateNumber(data)
+    Value.validateNumber(data)
 
     this.#id = `value_${Value.#instanceCounter++}`
     this.#data = data
@@ -33,7 +33,7 @@ export class Value {
     return `Value(${this.#data})`
   }
 
-  private validateNumber(value: number): void {
+  static validateNumber(value: number): void {
     if (!Number.isFinite(value)) {
       throw new Error('Value must be a finite number')
     }
@@ -48,7 +48,7 @@ export class Value {
   }
 
   set data(value: number) {
-    this.validateNumber(value)
+    Value.validateNumber(value)
     this.#data = value
   }
 
@@ -57,7 +57,7 @@ export class Value {
   }
 
   set grad(value: number) {
-    this.validateNumber(value)
+    Value.validateNumber(value)
     this.#grad = value
   }
 
@@ -175,9 +175,7 @@ export class Value {
 
     // Handle numbers directly
     if (typeof value === 'number') {
-      if (!Number.isFinite(value)) {
-        throw new Error('Value must be a finite number')
-      }
+      Value.validateNumber(value)
       return new Value(value)
     }
 
@@ -315,7 +313,8 @@ export class Value {
     const valueA = Value.from(a)
     const valueB = Value.from(b)
 
-    if (valueA.data === 0) {
+    if (Math.abs(valueA.data) <= Number.EPSILON) {
+      // If valueA is effectively zero
       if (valueB.data === 0) {
         throw new Error('Cannot raise 0 to zero or negative power')
       }
@@ -337,10 +336,6 @@ export class Value {
     const v = new Value(result, label, [valueA, valueB], 'pow')
     v.#computeGradient = () => {
       if (Math.abs(valueA.data) <= Number.EPSILON) {
-        // If valueA is effectively zero
-        if (valueB.data <= 0) {
-          throw new Error('Cannot raise 0 to zero or negative power')
-        }
         valueA.grad += 0 // Derivative of 0^x for x > 0 is 0
         valueB.grad += 0 // Derivative with respect to exponent is also 0
       } else {
