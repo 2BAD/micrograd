@@ -36,6 +36,7 @@
         "noNamespace": "error",
         "noNamespaceImport": "error",
         "noNegationElse": "error",
+        "noNonNullAssertion": "off",
         "noParameterProperties": "error",
         "noShoutyConstants": "error",
         "noYodaExpression": "error",
