@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Value } from './value.ts'
 
 export class Neuron {
@@ -61,9 +62,13 @@ class MLP {
       let totalLoss = new Value(0)
 
       for (let i = 0; i < xs.length; i++) {
-        const pred = this.forward(xs[i])[0]
-        const target = new Value(ys[i])
-        const loss = pred.sub(target).pow(2)
+        // biome-ignore lint/style/noNonNullAssertion:
+        const inputs = xs[i]!.map((x) => new Value(x))
+        const pred = this.forward(inputs)[0]
+        // biome-ignore lint/style/noNonNullAssertion:
+        const target = new Value(ys[i]!)
+        // biome-ignore lint/style/noNonNullAssertion:
+        const loss = pred!.sub(target).pow(2)
         totalLoss = totalLoss.add(loss)
       }
 
