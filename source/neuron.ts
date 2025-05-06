@@ -44,7 +44,6 @@ export class MLP {
   constructor(inputs: number, outputs: number[]) {
     const sizes = [inputs, ...outputs]
     this.layers = sizes.slice(1).map((size, i) => {
-      // biome-ignore lint/style/noNonNullAssertion: this is a typescript limitation
       return new Layer(sizes[i]!, size)
     })
   }
@@ -62,12 +61,9 @@ export class MLP {
       let totalLoss = new Value(0)
 
       for (let i = 0; i < xs.length; i++) {
-        // biome-ignore lint/style/noNonNullAssertion:
         const inputs = xs[i]!.map((x) => new Value(x))
         const pred = this.forward(inputs)[0]
-        // biome-ignore lint/style/noNonNullAssertion:
         const target = new Value(ys[i]!)
-        // biome-ignore lint/style/noNonNullAssertion:
         const loss = pred!.sub(target).pow(2)
         totalLoss = totalLoss.add(loss)
       }
