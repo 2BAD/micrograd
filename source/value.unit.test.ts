@@ -170,7 +170,6 @@ describe('Value', () => {
     let a: Value
     let b: Value
 
-    // eslint-disable-next-line vitest/no-hooks
     beforeEach(() => {
       a = new Value(2)
       b = new Value(3)

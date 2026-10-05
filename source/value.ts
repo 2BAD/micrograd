@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 export class Value {
   readonly #id: string
   #data: number

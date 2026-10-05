@@ -37,7 +37,6 @@ export class Layer {
   }
 }
 
-// biome-ignore lint/style/useNamingConvention:
 export class MLP {
   layers: Layer[]
 
