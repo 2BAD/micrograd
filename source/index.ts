@@ -1,3 +1,3 @@
-export { Layer, MLP, Neuron } from './neuron.ts'
-export { GraphVisualizer } from './utils/visualizer.ts'
-export { Value } from './value.ts'
+export { toMermaid } from './mermaid.ts'
+export { type Activation, Layer, MLP, Module, Neuron } from './nn.ts'
+export { type Operand, Value } from './value.ts'
