@@ -10,10 +10,6 @@ A tiny autograd engine in TypeScript, ported from Andrej Karpathy's [micrograd](
 
 Extras over the original: higher-order and mixed derivatives, `log`, `sigmoid`, gradient norm clipping, a Mermaid graph renderer, and errors instead of `NaN`.
 
-## Requirements
-
-- Node.js >= 26
-
 ## Install
 
 ```bash
@@ -171,26 +167,6 @@ function toMermaid(root: Value): string
 ### Errors
 
 Ops throw a `RangeError` naming the op instead of returning `NaN` or `Infinity`, e.g. `/ produced Infinity`. `backward()` throws on gradient overflow, `Neuron.forward` on a wrong input count.
-
-## Repository layout
-
-```
-source/
-  value.ts      Value: the graph, the ops and their derivatives, backward and gradients
-  nn.ts         Module, Neuron, Layer, MLP
-  mermaid.ts    toMermaid
-```
-
-## Development
-
-```bash
-git clone https://github.com/2BAD/micrograd.git
-cd micrograd
-pnpm install
-pnpm build          # tsdown
-pnpm check          # oxlint + oxfmt + tsc
-pnpm test:unit      # vitest with coverage
-```
 
 ## License
 
