@@ -1,12 +1,12 @@
 # MicroGrad
 
-A tiny autograd engine in TypeScript, ported from Andrej Karpathy's [micrograd](https://github.com/karpathy/micrograd), with a small neural network library (`Neuron`, `Layer`, `MLP`) on top. Built for learning backpropagation, not for real workloads.
-
 [![NPM version](https://img.shields.io/npm/v/@2bad/micrograd)](https://www.npmjs.com/package/@2bad/micrograd)
 [![License](https://img.shields.io/npm/l/@2bad/micrograd)](https://opensource.org/license/MIT)
 [![GitHub Build Status](https://img.shields.io/github/actions/workflow/status/2BAD/micrograd/build.yml)](https://github.com/2BAD/micrograd/actions/workflows/build.yml)
 [![Code coverage](https://img.shields.io/codecov/c/github/2BAD/micrograd)](https://codecov.io/gh/2BAD/micrograd)
 [![Written in TypeScript](https://img.shields.io/github/languages/top/2BAD/micrograd)](https://www.typescriptlang.org/)
+
+A tiny autograd engine in TypeScript, ported from Andrej Karpathy's [micrograd](https://github.com/karpathy/micrograd), with a small neural network library (`Neuron`, `Layer`, `MLP`) on top. Built for learning backpropagation, not for real workloads.
 
 Extras over the original: higher-order and mixed derivatives, `log`, `sigmoid`, gradient norm clipping, a Mermaid graph renderer, and errors instead of `NaN`.
 
