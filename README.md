@@ -10,7 +10,7 @@ A tiny autograd engine in TypeScript, ported from Andrej Karpathy's [micrograd](
 
 It's meant for learning how backpropagation works, not for real workloads. Every scalar is an object, so anything beyond toy networks will be slow.
 
-Compared to the Python original, operations come as both instance and static methods, inputs get coerced and validated, and there are a few extras: higher-order gradients, `log`, `exp`, `sigmoid`, gradient clipping, a gradient health check, and a Mermaid graph renderer.
+Compared to the Python original, there are a few extras: higher-order and mixed derivatives, `log` and `sigmoid`, gradient norm clipping, a Mermaid graph renderer, and errors instead of `NaN`.
 
 ## Requirements
 
@@ -30,10 +30,10 @@ import { Value } from '@2bad/micrograd'
 const a = new Value(-4, 'a')
 const b = new Value(2, 'b')
 
-const c = a.add(b, 'c')
-const d = a.mul(b).add(b.pow(3), 'd')
-const e = c.sub(d, 'e')
-const f = e.pow(2, 'f')
+const c = a.add(b)
+const d = a.mul(b).add(b.pow(3))
+const e = c.sub(d)
+const f = e.pow(2)
 
 f.backward()
 
@@ -42,30 +42,40 @@ console.log(a.grad) // 4, df/da
 console.log(b.grad) // 28, df/db
 ```
 
-Gradients accumulate. Call `resetGrad()` on the root before running `backward()` again on the same graph.
+Operands can be a `Value` or a plain number. `pow` takes a number exponent; for a variable exponent write `x.log().mul(y).exp()`.
 
-## Higher-order gradients
+`backward()` adds into `grad`, so calling it twice doubles every gradient and several graphs that share a parameter sum their contributions. Reset with `zeroGrad()` on the root, or on a model.
 
-Each op's local derivative is itself built from `Value` operations, so the gradient graph can be differentiated again. Pass an order to `backward` and read the results per node:
+## Higher-order derivatives
+
+`gradients(inputs)` returns the derivative of a value with respect to each input as a new `Value` instead of writing to `grad`. The result is itself a graph, so it can be differentiated again:
 
 ```typescript
 const x = new Value(3)
-x.pow(3).backward(3)
 
-x.getHigherOrderGradient(1) // 27, 3x^2
-x.getHigherOrderGradient(2) // 18, 6x
-x.getHigherOrderGradient(3) // 6
+const [dx] = x.pow(3).gradients([x]) // 27, 3x^2
+const [dx2] = dx.gradients([x]) // 18, 6x
+const [dx3] = dx2.gradients([x]) // 6
 ```
 
-These are pure derivatives of the root with respect to one node (d^n f/dx^n), not mixed partials. Orders that weren't computed return 0.
+Mixed partials work the same way:
+
+```typescript
+const x = new Value(2)
+const y = new Value(3)
+const f = x.pow(2).mul(y) // x^2 * y
+
+const [dfdx] = f.gradients([x]) // 12, 2xy
+const [dfdxdy] = dfdx.gradients([y]) // 4, 2x
+```
 
 ## Training a network
 
 ```typescript
-import { MLP, Value } from '@2bad/micrograd'
+import { MLP } from '@2bad/micrograd'
 
-// 3 inputs, two hidden layers of 4, one output
-const mlp = new MLP(3, [4, 4, 1])
+// 3 inputs, two hidden tanh layers of 4, one linear output
+const model = new MLP(3, [4, 4, 1])
 
 const xs = [
   [2, 3, -1],
@@ -75,100 +85,100 @@ const xs = [
 ]
 const ys = [1, -1, -1, 1]
 
-mlp.train(xs, ys, 0.05, 50)
+for (let step = 0; step < 100; step++) {
+  const loss = xs
+    .map((x, i) => model.forward(x)[0].sub(ys[i]).pow(2))
+    .reduce((sum, term) => sum.add(term))
 
-const [out] = mlp.forward([2, 3, -1].map((x) => new Value(x)))
-console.log(out?.data) // close to 1
+  model.zeroGrad()
+  loss.backward()
+  model.clipGradNorm(1)
+  for (const p of model.parameters()) {
+    p.data -= 0.05 * p.grad
+  }
+}
+
+console.log(xs.map((x) => model.forward(x)[0].data)) // close to [1, -1, -1, 1]
 ```
 
-`train` does plain gradient descent on squared error against the first output and logs the loss every 10 epochs. Every neuron uses `tanh`. For anything else, write your own loop over `forward()` and `parameters()`.
+Hidden layers use `tanh` and the last layer is linear. Change either with `new MLP(3, [4, 4, 1], { activation: 'relu', outputActivation: 'sigmoid' })`. Weights start uniform in `[-1, 1] / sqrt(inputs)` and biases at 0.
 
 ## Visualizing the graph
 
 ```typescript
-import { GraphVisualizer, Value } from '@2bad/micrograd'
+import { Value, toMermaid } from '@2bad/micrograd'
 
 const p = new Value(2, 'p')
-const q = p.mul(3, 'q')
+const q = p.mul(3)
+q.label = 'q'
 q.backward()
 
-console.log(new GraphVisualizer().generateMermaid(q))
+console.log(toMermaid(q))
 ```
 
-The output is a [Mermaid](https://mermaid.js.org/) flowchart with each node's data and grad. Paste it into anything that renders Mermaid, GitHub markdown included.
+The output is a [Mermaid](https://mermaid.js.org/) flowchart with each node's label, data and grad. Paste it into anything that renders Mermaid, GitHub markdown included.
 
 ## API
 
 ```typescript
+type Operand = Value | number
+type Activation = 'linear' | 'relu' | 'sigmoid' | 'tanh'
+
 class Value {
-  constructor(data: number, label?: string, children?: Value[], operation?: string)
-  static from(value: unknown): Value
+  constructor(data: number, label?: string)
 
   data: number
   grad: number
-  readonly id: string
-  readonly label: string
+  label: string
+  readonly op: string
   readonly children: Value[]
-  readonly operation: string
 
-  add(b: unknown, label?: string): Value
-  sub(b: unknown, label?: string): Value
-  mul(b: unknown, label?: string): Value
-  div(b: unknown, label?: string): Value
-  pow(b: unknown, label?: string): Value
+  add(other: Operand): Value
+  sub(other: Operand): Value
+  mul(other: Operand): Value
+  div(other: Operand): Value
+  pow(exponent: number): Value
+  neg(): Value
   exp(): Value
+  log(): Value
   tanh(): Value
+  sigmoid(): Value
+  relu(): Value
 
-  static add(a: unknown, b: unknown, label?: string): Value
-  static sub(a: unknown, b: unknown, label?: string): Value
-  static mul(a: unknown, b: unknown, label?: string): Value
-  static div(a: unknown, b: unknown, label?: string): Value
-  static pow(a: unknown, b: unknown, label?: string): Value
-  static exp(a: unknown, label?: string): Value
-  static log(a: unknown, label?: string): Value
-  static tanh(a: unknown, label?: string): Value
-  static relu(a: unknown, label?: string): Value
-  static sigmoid(a: unknown, label?: string): Value
-  static negate(a: unknown, label?: string): Value
-
-  backward(order?: number): void
-  getHigherOrderGradient(order: number): number
-  resetGrad(): void
-  clipGradients(maxNorm: number): void
-  checkGradientHealth(): { hasExploding: boolean; hasVanishing: boolean; maxGrad: number; minGrad: number }
+  backward(): void
+  gradients(inputs: Value[]): Value[]
+  zeroGrad(): void
 }
 
-class Neuron {
-  constructor(inputs: number)
-  forward(inputs: Value[]): Value
+abstract class Module {
   parameters(): Value[]
+  zeroGrad(): void
+  clipGradNorm(maxNorm: number): number
 }
 
-class Layer {
-  constructor(inputs: number, outputs: number)
-  forward(inputs: Value[]): Value[]
-  parameters(): Value[]
+class Neuron extends Module {
+  constructor(inputs: number, activation?: Activation)
+  forward(inputs: Operand[]): Value
 }
 
-class MLP {
-  constructor(inputs: number, outputs: number[])
-  forward(inputs: Value[]): Value[]
-  parameters(): Value[]
-  train(xs: number[][], ys: number[], learningRate?: number, epochs?: number): void
+class Layer extends Module {
+  constructor(inputs: number, outputs: number, activation?: Activation)
+  forward(inputs: Operand[]): Value[]
 }
 
-class GraphVisualizer {
-  generateMermaid(root: Value): string
+class MLP extends Module {
+  constructor(inputs: number, outputs: number[], options?: { activation?: Activation; outputActivation?: Activation })
+  forward(inputs: Operand[]): Value[]
 }
+
+function toMermaid(root: Value): string
 ```
 
-Operands typed `unknown` go through `Value.from`, which accepts a `Value`, a number, a numeric string, a boolean (as 1 or 0), or a single-element array. Anything else throws.
-
-`checkGradientHealth` reports exploding gradients above 1e3 and vanishing ones below 1e-3, ignoring zeros.
+`gradients` returns zero for inputs the value doesn't depend on. `clipGradNorm` scales all parameter gradients so their L2 norm is at most `maxNorm` and returns the norm before clipping.
 
 ### Errors
 
-Everything throws a plain `Error` instead of producing `NaN` or `Infinity`: non-finite data or grads, division by a near-zero value, `log` of a non-positive number, `0` raised to a non-positive power, a negative base with a non-integer exponent, and `pow` overflow.
+Instead of producing `NaN` or `Infinity`, every operation throws a `RangeError` naming the op, for example `/ produced Infinity` for division by zero or `log produced NaN` for the log of a negative number. The same applies to constructing a `Value` from a non-finite number, to a gradient that overflows during `backward()`, and to a derivative that doesn't exist at the point (such as `x.pow(0.5)` at 0). `Neuron.forward` throws when the input count doesn't match.
 
 ## Development
 
