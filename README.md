@@ -6,86 +6,165 @@
 [![Code coverage](https://img.shields.io/codecov/c/github/2BAD/micrograd)](https://codecov.io/gh/2BAD/micrograd)
 [![Written in TypeScript](https://img.shields.io/github/languages/top/2BAD/micrograd)](https://www.typescriptlang.org/)
 
-A TypeScript implementation of an autograd engine for educational purposes.
+A tiny autograd engine in TypeScript, ported from Andrej Karpathy's [micrograd](https://github.com/karpathy/micrograd). Every operation on a `Value` records its inputs, building a DAG on the fly, and `backward()` walks that graph in reverse topological order to compute gradients. On top of that sits a small neural network library (`Neuron`, `Layer`, `MLP`) that is enough to train a classifier.
 
-## Overview
+It's meant for learning how backpropagation works, not for real workloads. Every scalar is an object, so anything beyond toy networks will be slow.
 
-MicroGrad implements backpropagation (reverse-mode autodiff) over a dynamically built Directed Acyclic Graph (DAG). This project demonstrates how to implement automatic differentiation principles in TypeScript.
+Compared to the Python original, operations come as both instance and static methods, inputs get coerced and validated, and there are a few extras: `log`, `exp`, `sigmoid`, gradient clipping, a gradient health check, and a Mermaid graph renderer.
 
-## Key Components
+## Requirements
 
-- **Value Class**: Core autodiff functionality with gradient computation
-- **Neural Network Primitives**: Simple Neuron, Layer, and MLP implementations
-- **Graph Visualization**: Tools to visualize computation graphs
+- Node.js >= 26
 
-## Key improvements over the Python version
-
-- **API Design**: Both instance and static methods for operations compared to instance-only methods
-- **Higher Order Gradients**: Support for computing higher-order derivatives
-- **Extended Math**: Additional operations including log, exp, tanh, and sigmoid
-- **Gradient Tools**: Methods for gradient health checks and gradient clipping
-- **Performance**: Iterative stack-based topological sort for better efficiency
-
-## Usage Example
-
-```typescript
-import { Value } from '@2bad/micrograd';
-  // Create computation graph
-  const a = new Value(-4.0, 'a')
-  const b = new Value(2.0, 'b')
-  let c = Value.add(a, b, 'c') // a + b
-  let d = Value.add(Value.mul(a, b), Value.pow(b, 3), 'd') // a * b + b**3
-
-  // c += c + 1
-  c = Value.add(c, Value.add(c, new Value(1.0)))
-
-  // c += 1 + c + (-a)
-  c = Value.add(c, Value.add(Value.add(new Value(1.0), c), Value.negate(a)))
-
-  // d += d * 2 + (b + a).relu()
-  const bPlusA = Value.add(b, a)
-  d = Value.add(d, Value.add(Value.mul(d, 2), Value.relu(bPlusA)))
-
-  // d += 3 * d + (b - a).relu()
-  const bMinusA = Value.sub(b, a)
-  d = Value.add(d, Value.add(Value.mul(3, d), Value.relu(bMinusA)))
-
-  // e = c - d
-  const e = Value.sub(c, d, 'e')
-
-  // f = e**2
-  const f = Value.pow(e, 2, 'f')
-
-  // g = f / 2.0
-  let g = Value.div(f, 2.0, 'g')
-
-  // g += 10.0 / f
-  g = Value.add(g, Value.div(10.0, f))
-
-  // Forward pass
-  console.log(g.data); // Value of the computation
-
-  // Backward pass (compute gradients)
-  g.backward();
-
-  // Access gradients
-  console.log(a.grad); // dg/da
-  console.log(b.grad); // dg/db
-```
-
-## Building and Testing
+## Install
 
 ```bash
-# Install dependencies
-npm install
-
-# Build the project
-npm run build
-
-# Run tests
-npm test
+npm install @2bad/micrograd
 ```
 
-## Acknowledgements
+## Quick start
 
-This project is inspired by [micrograd](https://github.com/karpathy/micrograd) by Andrej Karpathy. The TypeScript implementation extends the core concepts with additional features and type safety.
+```typescript
+import { Value } from '@2bad/micrograd'
+
+const a = new Value(-4, 'a')
+const b = new Value(2, 'b')
+
+const c = a.add(b, 'c')
+const d = a.mul(b).add(b.pow(3), 'd')
+const e = c.sub(d, 'e')
+const f = e.pow(2, 'f')
+
+f.backward()
+
+console.log(f.data) // 4
+console.log(a.grad) // 4, df/da
+console.log(b.grad) // 28, df/db
+```
+
+Gradients accumulate. Call `resetGrad()` on the root before running `backward()` again on the same graph.
+
+## Training a network
+
+```typescript
+import { MLP, Value } from '@2bad/micrograd'
+
+// 3 inputs, two hidden layers of 4, one output
+const mlp = new MLP(3, [4, 4, 1])
+
+const xs = [
+  [2, 3, -1],
+  [3, -1, 0.5],
+  [0.5, 1, 1],
+  [1, 1, -1]
+]
+const ys = [1, -1, -1, 1]
+
+mlp.train(xs, ys, 0.05, 50)
+
+const [out] = mlp.forward([2, 3, -1].map((x) => new Value(x)))
+console.log(out?.data) // close to 1
+```
+
+`train` does plain gradient descent on squared error against the first output and logs the loss every 10 epochs. Every neuron uses `tanh`. For anything else, write your own loop over `forward()` and `parameters()`.
+
+## Visualizing the graph
+
+```typescript
+import { GraphVisualizer, Value } from '@2bad/micrograd'
+
+const p = new Value(2, 'p')
+const q = p.mul(3, 'q')
+q.backward()
+
+console.log(new GraphVisualizer().generateMermaid(q))
+```
+
+The output is a [Mermaid](https://mermaid.js.org/) flowchart with each node's data and grad. Paste it into anything that renders Mermaid, GitHub markdown included.
+
+## API
+
+```typescript
+class Value {
+  constructor(data: number, label?: string, children?: Value[], operation?: string)
+  static from(value: unknown): Value
+
+  data: number
+  grad: number
+  readonly id: string
+  readonly label: string
+  readonly children: Value[]
+  readonly operation: string
+
+  add(b: unknown, label?: string): Value
+  sub(b: unknown, label?: string): Value
+  mul(b: unknown, label?: string): Value
+  div(b: unknown, label?: string): Value
+  pow(b: unknown, label?: string): Value
+  exp(): Value
+  tanh(): Value
+
+  static add(a: unknown, b: unknown, label?: string): Value
+  static sub(a: unknown, b: unknown, label?: string): Value
+  static mul(a: unknown, b: unknown, label?: string): Value
+  static div(a: unknown, b: unknown, label?: string): Value
+  static pow(a: unknown, b: unknown, label?: string): Value
+  static exp(a: unknown, label?: string): Value
+  static log(a: unknown, label?: string): Value
+  static tanh(a: unknown, label?: string): Value
+  static relu(a: unknown, label?: string): Value
+  static sigmoid(a: unknown, label?: string): Value
+  static negate(a: unknown, label?: string): Value
+
+  backward(): void
+  resetGrad(): void
+  clipGradients(maxNorm: number): void
+  checkGradientHealth(): { hasExploding: boolean; hasVanishing: boolean; maxGrad: number; minGrad: number }
+}
+
+class Neuron {
+  constructor(inputs: number)
+  forward(inputs: Value[]): Value
+  parameters(): Value[]
+}
+
+class Layer {
+  constructor(inputs: number, outputs: number)
+  forward(inputs: Value[]): Value[]
+  parameters(): Value[]
+}
+
+class MLP {
+  constructor(inputs: number, outputs: number[])
+  forward(inputs: Value[]): Value[]
+  parameters(): Value[]
+  train(xs: number[][], ys: number[], learningRate?: number, epochs?: number): void
+}
+
+class GraphVisualizer {
+  generateMermaid(root: Value): string
+}
+```
+
+Operands typed `unknown` go through `Value.from`, which accepts a `Value`, a number, a numeric string, a boolean (as 1 or 0), or a single-element array. Anything else throws.
+
+`checkGradientHealth` reports exploding gradients above 1e3 and vanishing ones below 1e-3, ignoring zeros.
+
+### Errors
+
+Everything throws a plain `Error` instead of producing `NaN` or `Infinity`: non-finite data or grads, division by a near-zero value, `log` of a non-positive number, `0` raised to a non-positive power, a negative base with a non-integer exponent, and `pow` overflow.
+
+## Development
+
+```bash
+git clone https://github.com/2BAD/micrograd.git
+cd micrograd
+pnpm install
+pnpm build          # tsdown
+pnpm check          # oxlint + oxfmt + tsc
+pnpm test:unit      # vitest with coverage
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
