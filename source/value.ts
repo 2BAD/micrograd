@@ -2,7 +2,7 @@ export class Value {
   readonly #id: string
   #data: number
   #grad: number
-  #computeGradient: () => void
+  #chainRule: (outputGrad: Value) => [Value, Value][]
   readonly #higherOrderGrads: Map<number, number>
 
   readonly label: string
@@ -17,7 +17,7 @@ export class Value {
     this.#id = `value_${Value.#instanceCounter++}`
     this.#data = data
     this.#grad = 0.0
-    this.#computeGradient = () => undefined
+    this.#chainRule = () => []
     this.#higherOrderGrads = new Map()
 
     this.label = label ?? ''
@@ -88,43 +88,50 @@ export class Value {
       throw new Error('Order must be >= 1')
     }
 
-    const visited = new Set<string>()
-    const stack: Value[] = []
+    for (const [node, gradient] of this.#gradientGraphs()) {
+      node.grad = node === this ? 1 : node.grad + gradient.data
 
-    // Topological sort using stack-based DFS
-    const topoSort = (node: Value) => {
-      if (visited.has(node.#id)) {
-        return
-      }
-      visited.add(node.#id)
-
-      for (const child of node.prev()) {
-        topoSort(child)
-      }
-      stack.push(node)
-    }
-
-    topoSort(this)
-    this.grad = 1.0
-
-    // Compute gradients in reverse order
-    while (stack.length > 0) {
-      const node = stack.pop()
-      if (!node) {
-        continue
-      }
-
-      node.#computeGradient()
-
-      // Store higher order gradients
       if (order > 1) {
-        node.#higherOrderGrads.set(1, node.grad)
+        let derivative = gradient
+        node.#higherOrderGrads.set(1, derivative.data)
         for (let i = 2; i <= order; i++) {
-          node.backward(i - 1)
-          node.#higherOrderGrads.set(i, node.grad)
+          derivative = derivative.#gradientGraphs().get(node) ?? new Value(0)
+          node.#higherOrderGrads.set(i, derivative.data)
         }
       }
     }
+  }
+
+  #gradientGraphs(): Map<Value, Value> {
+    const visited = new Set<Value>()
+    const order: Value[] = []
+
+    const visit = (node: Value) => {
+      if (visited.has(node)) {
+        return
+      }
+      visited.add(node)
+      for (const child of node.prev()) {
+        visit(child)
+      }
+      order.push(node)
+    }
+
+    visit(this)
+
+    const gradients = new Map<Value, Value>([[this, new Value(1)]])
+    for (const node of order.reverse()) {
+      const outputGrad = gradients.get(node)
+      if (!outputGrad) {
+        continue
+      }
+      for (const [child, contribution] of node.#chainRule(outputGrad)) {
+        const existing = gradients.get(child)
+        gradients.set(child, existing ? existing.add(contribution) : contribution)
+      }
+    }
+
+    return gradients
   }
 
   getHigherOrderGradient(order: number): number {
@@ -138,18 +145,14 @@ export class Value {
   static sigmoid(a: unknown, label?: string): Value {
     const valueA = Value.from(a)
     const v = new Value(1 / (1 + Math.exp(-valueA.data)), label, [valueA], 'sigmoid')
-    v.#computeGradient = () => {
-      valueA.grad += v.data * (1 - v.data) * v.grad
-    }
+    v.#chainRule = (outputGrad) => [[valueA, outputGrad.mul(v).mul(Value.sub(1, v))]]
     return v
   }
 
   static relu(a: unknown, label?: string): Value {
     const valueA = Value.from(a)
     const v = new Value(Math.max(0, valueA.data), label, [valueA], 'relu')
-    v.#computeGradient = () => {
-      valueA.grad += (valueA.data > 0 ? 1 : 0) * v.grad
-    }
+    v.#chainRule = (outputGrad) => [[valueA, outputGrad.mul(valueA.data > 0 ? 1 : 0)]]
     return v
   }
 
@@ -159,9 +162,7 @@ export class Value {
       throw new Error('Log of non-positive number')
     }
     const v = new Value(Math.log(valueA.data), label, [valueA], 'log')
-    v.#computeGradient = () => {
-      valueA.grad += (1 / valueA.data) * v.grad
-    }
+    v.#chainRule = (outputGrad) => [[valueA, outputGrad.div(valueA)]]
     return v
   }
 
@@ -214,9 +215,7 @@ export class Value {
     const value = Value.from(a)
 
     const v = new Value(value.data * -1, label, [value], 'neg')
-    v.#computeGradient = () => {
-      value.grad += -1.0 * v.grad
-    }
+    v.#chainRule = (outputGrad) => [[value, Value.negate(outputGrad)]]
 
     return v
   }
@@ -226,10 +225,10 @@ export class Value {
     const valueB = Value.from(b)
 
     const v = new Value(valueA.data + valueB.data, label, [valueA, valueB], 'add')
-    v.#computeGradient = () => {
-      valueA.grad += 1.0 * v.grad
-      valueB.grad += 1.0 * v.grad
-    }
+    v.#chainRule = (outputGrad) => [
+      [valueA, outputGrad],
+      [valueB, outputGrad]
+    ]
 
     return v
   }
@@ -243,10 +242,10 @@ export class Value {
     const valueB = Value.from(b)
 
     const v = new Value(valueA.data - valueB.data, label, [valueA, valueB], 'sub')
-    v.#computeGradient = () => {
-      valueA.grad += 1.0 * v.grad
-      valueB.grad += -1.0 * v.grad
-    }
+    v.#chainRule = (outputGrad) => [
+      [valueA, outputGrad],
+      [valueB, Value.negate(outputGrad)]
+    ]
 
     return v
   }
@@ -260,10 +259,10 @@ export class Value {
     const valueB = Value.from(b)
 
     const v = new Value(valueA.data * valueB.data, label, [valueA, valueB], 'mul')
-    v.#computeGradient = () => {
-      valueA.grad += valueB.data * v.grad
-      valueB.grad += valueA.data * v.grad
-    }
+    v.#chainRule = (outputGrad) => [
+      [valueA, outputGrad.mul(valueB)],
+      [valueB, outputGrad.mul(valueA)]
+    ]
 
     return v
   }
@@ -281,10 +280,10 @@ export class Value {
     }
 
     const v = new Value(valueA.data / valueB.data, label, [valueA, valueB], 'div')
-    v.#computeGradient = () => {
-      valueA.grad += (1.0 / valueB.data) * v.grad
-      valueB.grad += (-valueA.data / (valueB.data * valueB.data)) * v.grad
-    }
+    v.#chainRule = (outputGrad) => [
+      [valueA, outputGrad.div(valueB)],
+      [valueB, Value.negate(outputGrad.mul(valueA).div(valueB).div(valueB))]
+    ]
 
     return v
   }
@@ -297,9 +296,7 @@ export class Value {
     const valueA = Value.from(a)
 
     const v = new Value(Math.exp(valueA.data), label, [valueA], 'exp')
-    v.#computeGradient = () => {
-      valueA.grad += v.data * v.grad
-    }
+    v.#chainRule = (outputGrad) => [[valueA, outputGrad.mul(v)]]
 
     return v
   }
@@ -333,15 +330,10 @@ export class Value {
     }
 
     const v = new Value(result, label, [valueA, valueB], 'pow')
-    v.#computeGradient = () => {
-      if (Math.abs(valueA.data) <= Number.EPSILON) {
-        valueA.grad += 0 // Derivative of 0^x for x > 0 is 0
-        valueB.grad += 0 // Derivative with respect to exponent is also 0
-      } else {
-        valueA.grad += valueB.data * valueA.data ** (valueB.data - 1) * v.grad
-        valueB.grad += valueA.data ** valueB.data * Math.log(Math.abs(valueA.data)) * v.grad
-      }
-    }
+    v.#chainRule = (outputGrad) => [
+      [valueA, outputGrad.mul(valueB).mul(valueA.pow(valueB.sub(1)))],
+      [valueB, outputGrad.mul(v).mul(valueA.data > 0 ? Value.log(valueA) : Math.log(Math.abs(valueA.data)))]
+    ]
 
     return v
   }
@@ -354,9 +346,7 @@ export class Value {
     const valueA = Value.from(a)
 
     const v = new Value(Math.tanh(valueA.#data), label, [valueA], 'tanh')
-    v.#computeGradient = () => {
-      valueA.#grad += (1.0 - v.#data ** 2) * v.#grad
-    }
+    v.#chainRule = (outputGrad) => [[valueA, outputGrad.mul(Value.sub(1, v.mul(v)))]]
 
     return v
   }

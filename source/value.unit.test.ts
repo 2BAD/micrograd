@@ -743,15 +743,64 @@ describe('Value', () => {
     })
 
     describe('higher order gradients', () => {
-      test.skip('should compute second-order gradients', () => {
-        // Skipping this test since the current implementation
-        // may need further adjustment for higher-order gradients
-        expect(true).toBe(true)
+      test('should compute derivatives of a polynomial up to the vanishing order', () => {
+        const x = new Value(3)
+        const y = x.pow(3)
+
+        y.backward(4)
+
+        expect(x.getHigherOrderGradient(1)).toBeCloseTo(27)
+        expect(x.getHigherOrderGradient(2)).toBeCloseTo(18)
+        expect(x.getHigherOrderGradient(3)).toBeCloseTo(6)
+        expect(x.getHigherOrderGradient(4)).toBeCloseTo(0)
+        expect(x.grad).toBeCloseTo(27)
       })
 
-      test.skip('should compute higher-order gradients with backward(order)', () => {
-        // Skipping detailed assertion since implementation may need adjustment
-        expect(true).toBe(true)
+      test('should compute second-order gradients of tanh', () => {
+        const x = new Value(0.5)
+        const y = x.tanh()
+
+        y.backward(2)
+
+        const t = Math.tanh(0.5)
+        expect(x.getHigherOrderGradient(1)).toBeCloseTo(1 - t ** 2)
+        expect(x.getHigherOrderGradient(2)).toBeCloseTo(-2 * t * (1 - t ** 2))
+      })
+
+      test('should compute second-order gradients of sigmoid and exp', () => {
+        const x = new Value(0.3)
+
+        Value.sigmoid(x).backward(2)
+        const s = 1 / (1 + Math.exp(-0.3))
+        expect(x.getHigherOrderGradient(2)).toBeCloseTo(s * (1 - s) * (1 - 2 * s))
+
+        Value.exp(x).backward(3)
+        expect(x.getHigherOrderGradient(3)).toBeCloseTo(Math.exp(0.3))
+      })
+
+      test('should compute pure second-order gradients per input', () => {
+        // f = x^2 * y + y^3
+        const x = new Value(2)
+        const y = new Value(3)
+        const f = x.pow(2).mul(y).add(y.pow(3))
+
+        f.backward(2)
+
+        expect(x.getHigherOrderGradient(1)).toBeCloseTo(12) // 2xy
+        expect(x.getHigherOrderGradient(2)).toBeCloseTo(6) // 2y
+        expect(y.getHigherOrderGradient(1)).toBeCloseTo(31) // x^2 + 3y^2
+        expect(y.getHigherOrderGradient(2)).toBeCloseTo(18) // 6y
+      })
+
+      test('should compute second-order gradients through division and log', () => {
+        const x = new Value(2)
+        const y = Value.log(x).div(x)
+
+        y.backward(2)
+
+        // d/dx ln(x)/x = (1 - ln x) / x^2, d2/dx2 = (2 ln x - 3) / x^3
+        expect(x.getHigherOrderGradient(1)).toBeCloseTo((1 - Math.log(2)) / 4)
+        expect(x.getHigherOrderGradient(2)).toBeCloseTo((2 * Math.log(2) - 3) / 8)
       })
 
       test('should throw error for invalid order', () => {

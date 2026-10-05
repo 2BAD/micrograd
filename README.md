@@ -10,7 +10,7 @@ A tiny autograd engine in TypeScript, ported from Andrej Karpathy's [micrograd](
 
 It's meant for learning how backpropagation works, not for real workloads. Every scalar is an object, so anything beyond toy networks will be slow.
 
-Compared to the Python original, operations come as both instance and static methods, inputs get coerced and validated, and there are a few extras: `log`, `exp`, `sigmoid`, gradient clipping, a gradient health check, and a Mermaid graph renderer.
+Compared to the Python original, operations come as both instance and static methods, inputs get coerced and validated, and there are a few extras: higher-order gradients, `log`, `exp`, `sigmoid`, gradient clipping, a gradient health check, and a Mermaid graph renderer.
 
 ## Requirements
 
@@ -43,6 +43,21 @@ console.log(b.grad) // 28, df/db
 ```
 
 Gradients accumulate. Call `resetGrad()` on the root before running `backward()` again on the same graph.
+
+## Higher-order gradients
+
+Each op's local derivative is itself built from `Value` operations, so the gradient graph can be differentiated again. Pass an order to `backward` and read the results per node:
+
+```typescript
+const x = new Value(3)
+x.pow(3).backward(3)
+
+x.getHigherOrderGradient(1) // 27, 3x^2
+x.getHigherOrderGradient(2) // 18, 6x
+x.getHigherOrderGradient(3) // 6
+```
+
+These are pure derivatives of the root with respect to one node (d^n f/dx^n), not mixed partials. Orders that weren't computed return 0.
 
 ## Training a network
 
@@ -116,7 +131,8 @@ class Value {
   static sigmoid(a: unknown, label?: string): Value
   static negate(a: unknown, label?: string): Value
 
-  backward(): void
+  backward(order?: number): void
+  getHigherOrderGradient(order: number): number
   resetGrad(): void
   clipGradients(maxNorm: number): void
   checkGradientHealth(): { hasExploding: boolean; hasVanishing: boolean; maxGrad: number; minGrad: number }
