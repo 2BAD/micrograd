@@ -61,19 +61,19 @@
     "@types/node": "26.6.4",
     "@vitest/coverage-v8": "5.0.3",
     "npm-run-all2": "9.0.3",
-    "oxfmt": "0.71.0",
-    "oxlint": "1.86.0",
+    "oxfmt": "0.72.0",
+    "oxlint": "1.87.0",
     "publint": "0.3.25",
     "tsdown": "0.23.0",
     "typescript": "7.0.2",
     "vitest": "5.0.3"
   },
-  "packageManager": "pnpm@12.8.2",
+  "packageManager": "pnpm@12.10.1",
   "engines": {
     "node": ">=26"
   },
   "volta": {
-    "node": "26.10.0",
-    "pnpm": "12.8.2"
+    "node": "26.11.1",
+    "pnpm": "12.10.1"
   }
 }
